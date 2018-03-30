@@ -23,6 +23,12 @@ class BipartiteGraph(object):
     def get_rns(self):
         return self._rns.keys()
 
+    def get_lns_count(self):
+        return len(self._lns)
+
+    def get_weight(self, ln, rn):
+        return self._lns[ln][rn]
+
     def get_lns_index(self):
         return dict([(node, i) for i, node in enumerate(self._lns)])
 
@@ -46,6 +52,41 @@ class BipartiteGraph(object):
             return self.get_ln_neighbors(node)
         else:
             return self.get_rn_neighbors(node)
+
+    def split_subgraphs(self):
+        """Bipartitle graph가 연결이 끊어진 여러 그래프로 나뉠 수 있다면, 해당 그래프들을 분리해서 list에 담아 반환한다."""
+        # not yes processed edges
+        wating_edges = set()
+        for ln in self.get_lns():
+            for ne in self.get_ln_neighbors(ln):
+                wating_edges.add((ln, ne))
+
+        result_list = []
+        while len(wating_edges) > 0:
+            # 아직 처리되지 않은 edge 하나를 뽑아서 starting point ln을 정한다.
+            _ln, _rn = wating_edges.pop()
+            wating_lns = [_ln]
+
+            # ln 정보만 얻고 다시 대기열에 넣어두어야 이후에 정상 처리됨.
+            wating_edges.add((_ln, _rn))
+
+            g = BipartiteGraph()
+            while len(wating_lns) > 0:
+                ln = wating_lns.pop(0)
+
+                # 아직 처리 안된 edge에 대해서만 처리
+                for rn in filter(lambda candidate_rn: (ln, candidate_rn) in wating_edges, self.get_ln_neighbors(ln)):
+                    g.add_edge(ln, rn, self.get_weight(ln, rn))
+
+                    # 처리한 edge를 대기열에서 삭제하고,
+                    # 이번에 처리한 rn의 neighbors(candidate ln)를 처리 대상으로 추가한다.
+                    wating_edges.remove((ln, rn))
+                    wating_lns.extend(filter(lambda candidate_ln: (candidate_ln, rn) in wating_edges, self.get_rn_neighbors(rn)))
+
+            # 하나의 subgraph 완성
+            result_list.append(g)
+
+        return result_list
 
 
 def simrank_bipartite(G, r=0.8, max_iter=100, eps=1e-4):
@@ -320,7 +361,7 @@ def simrank_double_plus_bipartite(G, r=0.8, max_iter=100, eps=1e-4):
         _update_left_partite()
         _update_right_partite()
 
-        #print "%d-iteration" % (i+1)
+        #print "%d-~iteration" % (i+1)
         #print lns_sim
         #print rns_sim
 
@@ -378,3 +419,24 @@ if __name__ == "__main__":
     for node, index in G2.get_rns_index().iteritems():
         print "%d | %s" % (index, node)
     print rns_sim
+
+    print "example3"
+    print "split into subgraphs"
+    print "A -> 1, 2 | B -> 1, 3 | C -> 3 | D -> 4, 5 | E -> 5"
+    print "two subgraphs: (A, B, C) and (D, E)"
+
+    G3 = BipartiteGraph()
+
+    G3.add_edge("A", 1)
+    G3.add_edge("A", 2)
+    G3.add_edge("B", 1)
+    G3.add_edge("B", 3)
+    G3.add_edge("C", 3)
+    G3.add_edge("D", 4)
+    G3.add_edge("D", 5)
+    G3.add_edge("E", 5)
+
+    for c, subgraph in enumerate(G3.split_subgraphs(), start=1):
+        print "%d-subgraph has %d-lns." % (c, subgraph.get_lns_count())
+        print subgraph.get_lns()
+
