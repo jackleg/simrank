@@ -2,10 +2,13 @@
 # -*- coding: utf8 -*-
 
 import itertools
+import logging
 from collections import defaultdict
 
 import numpy as np
 
+
+logging.basicConfig(level=logging.INFO, format='[%(asctime)s][%(levelname)s] %(message)s')
 
 class BipartiteGraph(object):
     """bipartite graph를 표현하기 위한 클래스"""
@@ -208,28 +211,23 @@ def simrank_double_plus_bipartite(G, r=0.8, max_iter=100, eps=1e-4):
                                0.50000, 0.75000, 0.87500, 0.93750, 0.96875,
                                0.98438, 0.99219, 0.99609, 0.99805, 0.99902]
 
-        calculated = np.full((len(ns), len(ns)), False)
+        # u_index는 데이터가 저장되는 index가 아니라,
+        # u x v pair를 만들 때 u 다음번 노드부터 사용하기 위해서만 사용한다.
+        for u_index, u in enumerate(ns):
+            for v in ns[(u_index+1):]:
+                u_ns = set(G.get_neighbors(u, is_lns))
+                v_ns = set(G.get_neighbors(v, is_lns))
 
-        for u, v in itertools.product(ns, ns):
-            # 동일한 노드이거나 이미 계산한 노드인 경우는 skip
-            if u is v: continue
-            if calculated[ns_index[u]][ns_index[v]]: continue
-
-            u_ns = set(G.get_neighbors(u, is_lns))
-            v_ns = set(G.get_neighbors(v, is_lns))
-
-            evidence_uv = 0.0
-
-            if (len(u_ns) == 0) or (len(v_ns) == 0):
                 evidence_uv = 0.0
-            else:
-                intersection = len(u_ns & v_ns)
-                evidence_uv = calculated_evidence[intersection] if intersection <= 10 else 1.0
 
-            ns_evidence[ns_index[u]][ns_index[v]] = evidence_uv
-            ns_evidence[ns_index[v]][ns_index[u]] = evidence_uv
-            calculated[ns_index[u]][ns_index[v]] = True
-            calculated[ns_index[v]][ns_index[u]] = True
+                if (len(u_ns) == 0) or (len(v_ns) == 0):
+                    evidence_uv = 0.0
+                else:
+                    intersection = len(u_ns & v_ns)
+                    evidence_uv = calculated_evidence[intersection] if intersection <= 10 else 1.0
+
+                ns_evidence[ns_index[u]][ns_index[v]] = evidence_uv
+                ns_evidence[ns_index[v]][ns_index[u]] = evidence_uv
 
 
     def _calculate_spread(ns, is_lns=True):
@@ -257,10 +255,14 @@ def simrank_double_plus_bipartite(G, r=0.8, max_iter=100, eps=1e-4):
 
 
     def _calculate_transition_prob():
+        logging.info("calculate spread for left side.")
         _calculate_spread(lns)
+        logging.info("calculate spread for right side.")
         _calculate_spread(rns, False)
 
+        logging.info("calculate normalized weight for left side.")
         _calculate_normalized_weight(lns)
+        logging.info("calculate normalized weight for right side.")
         _calculate_normalized_weight(rns, False)
 
         # lns to rns
@@ -335,27 +337,30 @@ def simrank_double_plus_bipartite(G, r=0.8, max_iter=100, eps=1e-4):
 
 
     ## evidance 계산
+    logging.info("calculate evidence for left side.")
     _calculate_evidence(lns, lns_index, lns_evidence)
+    logging.info("calculate evidence for right side.")
     _calculate_evidence(rns, rns_index, rns_evidence, False)
 
     ## transition probabiliyt
+    logging.info("calculate transition probability.")
     _calculate_transition_prob()
 
-    print "evidence"
-    print lns_evidence
-    print rns_evidence
+    logging.debug("evidence")
+    logging.debug(lns_evidence)
+    logging.debug(rns_evidence)
 
-    print "spread"
-    print lns_spread
-    print rns_spread
+    logging.debug("spread")
+    logging.debug(lns_spread)
+    logging.debug(rns_spread)
 
-    print "norm weights"
-    print norm_weight_l_to_r
-    print norm_weight_r_to_l
+    logging.debug("norm weights")
+    logging.debug(norm_weight_l_to_r)
+    logging.debug(norm_weight_r_to_l)
 
-    print "transition prob."
-    print transition_prob_l_to_r
-    print transition_prob_r_to_l
+    logging.debug("transition prob.")
+    logging.debug(transition_prob_l_to_r)
+    logging.debug(transition_prob_r_to_l)
 
     for i in range(max_iter):
         _update_left_partite()
@@ -371,6 +376,7 @@ def simrank_double_plus_bipartite(G, r=0.8, max_iter=100, eps=1e-4):
         lns_sim_prev = np.copy(lns_sim)
         rns_sim_prev = np.copy(rns_sim)
 
+        logging.info("%d-th iteration." % (i+1))
 
     print("Converge after %d iterations (eps=%f)." % ((i+1), eps))
 
