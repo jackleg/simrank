@@ -13,7 +13,7 @@ for linecnt, line in enumerate(sys.stdin, start=1):
     tokens = line.rstrip("\n").split("\t")
     if (tokens[2] == "01") or (int(tokens[3]) < 5): continue
 
-    G.add_edge(tokens[0], tokens[1], int(tokens[3]))
+    G.add_edge(tokens[0], tokens[1], float(tokens[3]))
 
     if linecnt % 1000 == 0:
         sys.stderr.write("%d-processed.\n" % linecnt)
