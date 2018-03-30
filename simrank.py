@@ -366,9 +366,9 @@ def simrank_double_plus_bipartite(G, r=0.8, max_iter=100, eps=1e-4):
         _update_left_partite()
         _update_right_partite()
 
-        #print "%d-~iteration" % (i+1)
-        #print lns_sim
-        #print rns_sim
+        logging.debug("%d-~iteration" % (i+1))
+        logging.debug(lns_sim)
+        logging.debug(rns_sim)
 
         if np.allclose(lns_sim, lns_sim_prev, atol=eps) and np.allclose(rns_sim, rns_sim_prev, atol=eps):
             break
@@ -426,23 +426,46 @@ if __name__ == "__main__":
         print "%d | %s" % (index, node)
     print rns_sim
 
-    print "example3"
+    print "example3, ()안은 weight"
+    print "순금반지 -> 1656770532(8), 1967201158(6), 1218341923(10), 886857215(5)"
+    print "금반지24K -> 1218341923(6)"
+    G3 = BipartiteGraph()
+
+    G3.add_edge("순금반지", "1656770532", 8.0)
+    G3.add_edge("순금반지", "1967201158", 6.0)
+    G3.add_edge("순금반지", "1218341923", 10.0)
+    G3.add_edge("순금반지", "886857215", 5.0)
+    G3.add_edge("금반지24K", "1218341923", 6.0)
+
+    lns_sim, rns_sim = simrank_double_plus_bipartite(G3)
+
+    print "sim"
+    for node, index in G3.get_lns_index().iteritems():
+        print "%d | %s" % (index, node)
+    print lns_sim
+
+    for node, index in G3.get_rns_index().iteritems():
+        print "%d | %s" % (index, node)
+    print rns_sim
+
+
+    print "example4"
     print "split into subgraphs"
     print "A -> 1, 2 | B -> 1, 3 | C -> 3 | D -> 4, 5 | E -> 5"
     print "two subgraphs: (A, B, C) and (D, E)"
 
-    G3 = BipartiteGraph()
+    G4 = BipartiteGraph()
 
-    G3.add_edge("A", 1)
-    G3.add_edge("A", 2)
-    G3.add_edge("B", 1)
-    G3.add_edge("B", 3)
-    G3.add_edge("C", 3)
-    G3.add_edge("D", 4)
-    G3.add_edge("D", 5)
-    G3.add_edge("E", 5)
+    G4.add_edge("A", 1)
+    G4.add_edge("A", 2)
+    G4.add_edge("B", 1)
+    G4.add_edge("B", 3)
+    G4.add_edge("C", 3)
+    G4.add_edge("D", 4)
+    G4.add_edge("D", 5)
+    G4.add_edge("E", 5)
 
-    for c, subgraph in enumerate(G3.split_subgraphs(), start=1):
+    for c, subgraph in enumerate(G4.split_subgraphs(), start=1):
         print "%d-subgraph has %d-lns." % (c, subgraph.get_lns_count())
         print subgraph.get_lns()
 
