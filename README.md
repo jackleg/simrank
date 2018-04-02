@@ -18,7 +18,15 @@ G.add_edge("camera", "bestbuy.com", 1.0)
 G.add_edge("digital_camera", "hp.com", 1.0)
 G.add_edge("digital_camera", "bestbuy.com", 1.0)
 ```
-3. simrank_double_plus_bipartite(BipartiteGraph)로 유사도 계산. lns, rns 유사도를 따로 받음.
+
+3. (Optional) sub graph로 split하기
+- 필요하다면 sub graph로 graph를 분리해서 계산 시간이나 메모리 사용량을 줄일 수 있다.
+```
+subgraph_list = G.split_subgraphs()
+```
+
+4. simrank_double_plus_bipartite(BipartiteGraph)로 유사도 계산. lns, rns 유사도를 따로 받음.
 ```
 lns_sim, rns_sim = simrank_double_plus_bipartite(G)
 ```
+
