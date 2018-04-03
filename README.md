@@ -30,3 +30,57 @@ subgraph_list = G.split_subgraphs()
 lns_sim, rns_sim = simrank_double_plus_bipartite(G)
 ```
 
+# 결과 예시
+```
+> ./simrank.py
+...
+example 1
+camera --> hp.com, bestbuy.com
+digital_camera --> hp.com, bestbuy.com
+Converge after 10 iterations (eps=0.000100).
+sim
+0 | camera
+1 | digital_camera
+[[ 1.          0.49994757]
+ [ 0.49994757  1.        ]]
+0 | bestbuy.com
+1 | hp.com
+[[ 1.          0.49994757]
+ [ 0.49994757  1.        ]]
+example2
+pc --> hp.com
+camera --> hp.com
+Converge after 2 iterations (eps=0.000100).
+sim
+0 | pc
+1 | camera
+[[ 1.   0.4]
+ [ 0.4  1. ]]
+0 | hp.com
+[[ 1.]]
+example3, ()안은 weight
+순금반지 -> 1656770532(8), 1967201158(6), 1218341923(10), 886857215(5)
+금반지24K -> 1218341923(6)
+Converge after 2 iterations (eps=0.000100).
+sim
+0 | 순금반지
+1 | 금반지24K
+[[  1.00000000e+00   4.77748390e-05]
+ [  4.77748390e-05   1.00000000e+00]]
+0 | 1656770532
+2 | 1967201158
+1 | 1218341923
+3 | 886857215
+[[  1.00000000e+00   1.57029184e-04   2.50690679e-04   2.50690679e-04]
+ [  1.57029184e-04   1.00000000e+00   1.57029184e-04   1.57029184e-04]
+ [  2.50690679e-04   1.57029184e-04   1.00000000e+00   2.50690679e-04]
+ [  2.50690679e-04   1.57029184e-04   2.50690679e-04   1.00000000e+00]]
+example4
+split into subgraphs
+A -> 1, 2 | B -> 1, 3 | C -> 3 | D -> 4, 5 | E -> 5
+two subgraphs: (A, B, C) and (D, E)
+1-subgraph has 3-lns.
+['A', 'C', 'B']
+2-subgraph has 2-lns.
+['E', 'D']
+```
