@@ -30,6 +30,23 @@ subgraph_list = G.split_subgraphs()
 lns_sim, rns_sim = simrank_double_plus_bipartite(G)
 ```
 
+# Helper
+* Similarty를 노드 실제 값들로 출력할 수 있도록 사전(dict)형으로 정리해주는 convert_sim_to_dict
+    * 아래와 같이 graph와 계산한 lns_sim, rns_sim matrix를 넘겨주면, 각각 사전형을 반환
+```
+...
+> lns_sim_dict, rns_sim_dict = convert_sim_to_dict(G3, lns_sim, rns_sim)
+> print json.dumps(lns_sim_dict, sort_keys=True, indent=4, ensure_ascii=False)
+{
+    "금반지24K": {
+        "순금반지": 9.405719204286108e-05
+    },
+    "순금반지": {
+        "금반지24K": 9.405719204286108e-05
+    }
+}
+```
+
 # 결과 예시
 ```
 > ./simrank.py

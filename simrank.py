@@ -3,6 +3,7 @@
 
 import itertools
 import logging
+import json
 from collections import defaultdict
 
 import numpy as np
@@ -16,15 +17,25 @@ class BipartiteGraph(object):
         self._lns = defaultdict(dict)
         self._rns = defaultdict(dict)
 
+        # node index의 안정성을 보장하기 위해 node 정보만 따로 가지고 있는 list 사용
+        self._lns_node = []
+        self._rns_node = []
+
     def add_edge(self, source, target, weight=1.0):
+        """source ->(weight)-> target인 edge를 이 그래프에 추가 """
+
+        # 처음 추가되는 노드라면 노드 리스트에 추가. rns도 동일한 방식.
+        if source not in self._lns: self._lns_node.append(source)
         self._lns[source][target] = weight
+
+        if target not in self._rns: self._rns_node.append(target)
         self._rns[target][source] = weight
 
     def get_lns(self):
-        return self._lns.keys()
+        return self._lns_node
 
     def get_rns(self):
-        return self._rns.keys()
+        return self._rns_node
 
     def get_lns_count(self):
         return len(self._lns)
@@ -33,10 +44,10 @@ class BipartiteGraph(object):
         return self._lns[ln][rn]
 
     def get_lns_index(self):
-        return dict([(node, i) for i, node in enumerate(self._lns)])
+        return dict([(node, i) for i, node in enumerate(self._lns_node)])
 
     def get_rns_index(self):
-        return dict([(node, i) for i, node in enumerate(self._rns)])
+        return dict([(node, i) for i, node in enumerate(self._rns_node)])
 
     def get_ln_neighbors(self, ln):
         if ln not in self._lns:
@@ -208,7 +219,7 @@ def simrank_double_plus_bipartite(G, r=0.8, max_iter=100, eps=1e-4):
         ## sum_i=1..n (1/2^n). 11개 이상은 1.0으로 봐도 됨.
         ## 공통 원소가 0개인 경우는 무조건 0이므로, 앞에 0 추가.
         calculated_evidence = [0.0,
-                               0.50000, 0.75000, 0.87500, 0.93750, 0.96875,
+
                                0.98438, 0.99219, 0.99609, 0.99805, 0.99902]
 
         # u_index는 데이터가 저장되는 index가 아니라,
@@ -384,6 +395,36 @@ def simrank_double_plus_bipartite(G, r=0.8, max_iter=100, eps=1e-4):
             np.multiply(rns_sim, rns_evidence))
 
 
+def convert_sim_to_dict(G, lns_sim, rns_sim, threshold=0.0):
+    """bipartite graph G의 lns_sim, rns_sim 정보를 json object로 생성
+
+    threshold보다 큰 값만 반환한다.
+    """
+
+    def _convert_sim_to_dict(ns, sim):
+        result_dict = {}
+        size = sim.shape[0]
+
+        for outer_index in range(size):
+            outer_node = ns[outer_index]
+            result_dict[outer_node] = {}
+
+            for inner_index in range(size):
+                # 자기 자신은 제외
+                if outer_index == inner_index: continue
+
+                inner_node = ns[inner_index]
+
+                if sim[outer_index][inner_index] > threshold:
+                    result_dict[outer_node][inner_node] = sim[outer_index][inner_index]
+
+        return result_dict
+
+    lns_sim_dict = _convert_sim_to_dict(G.get_lns(), lns_sim)
+    rns_sim_dict = _convert_sim_to_dict(G.get_rns(), rns_sim)
+
+    return (lns_sim_dict, rns_sim_dict)
+
 
 if __name__ == "__main__":
     print "example 1"
@@ -439,15 +480,13 @@ if __name__ == "__main__":
 
     lns_sim, rns_sim = simrank_double_plus_bipartite(G3)
 
-    print "sim"
-    for node, index in G3.get_lns_index().iteritems():
-        print "%d | %s" % (index, node)
-    print lns_sim
+    lns_sim_dict, rns_sim_dict = convert_sim_to_dict(G3, lns_sim, rns_sim)
 
-    for node, index in G3.get_rns_index().iteritems():
-        print "%d | %s" % (index, node)
-    print rns_sim
+    print "lns sim"
+    print json.dumps(lns_sim_dict, sort_keys=True, indent=4, ensure_ascii=False)
 
+    print "rns sim"
+    print json.dumps(rns_sim_dict, sort_keys=True, indent=4, ensure_ascii=False)
 
     print "example4"
     print "split into subgraphs"
