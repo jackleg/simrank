@@ -67,6 +67,13 @@ class BipartiteGraph(object):
         else:
             return self.get_rn_neighbors(node)
 
+    def get_edge_count(self):
+        count = 0
+        for lns in self._lns:
+            count += len(self._lns[lns])
+
+        return count
+
     def split_subgraphs(self):
         """Bipartitle graph가 연결이 끊어진 여러 그래프로 나뉠 수 있다면, 해당 그래프들을 분리해서 list에 담아 반환한다."""
         # not yes processed edges
@@ -77,6 +84,8 @@ class BipartiteGraph(object):
 
         result_list = []
         while len(wating_edges) > 0:
+            logging.info("wating edges count: %d" % len(wating_edges))
+
             # 아직 처리되지 않은 edge 하나를 뽑아서 starting point ln을 정한다.
             _ln, _rn = wating_edges.pop()
             wating_lns = [_ln]
@@ -85,7 +94,12 @@ class BipartiteGraph(object):
             wating_edges.add((_ln, _rn))
 
             g = BipartiteGraph()
+            logging.info("start new sub graph.")
             while len(wating_lns) > 0:
+                logging.info("    g-has edge: %d" % g.get_edge_count())
+                logging.info("    wating lns count: %d" % len(wating_lns))
+                logging.info("    wating edges count: %d" % len(wating_edges))
+
                 ln = wating_lns.pop(0)
 
                 # 아직 처리 안된 edge에 대해서만 처리
