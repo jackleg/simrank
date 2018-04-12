@@ -76,40 +76,25 @@ class BipartiteGraph(object):
 
     def split_subgraphs(self):
         """Bipartitle graph가 연결이 끊어진 여러 그래프로 나뉠 수 있다면, 해당 그래프들을 분리해서 list에 담아 반환한다."""
-        # not yes processed edges
-        wating_edges = set()
-        for ln in self.get_lns():
-            for ne in self.get_ln_neighbors(ln):
-                wating_edges.add((ln, ne))
+        # not yet processed nodes
+        unprocessed_lns = set(list(self.get_lns()))
 
         result_list = []
-        while len(wating_edges) > 0:
-            logging.info("wating edges count: %d" % len(wating_edges))
-
-            # 아직 처리되지 않은 edge 하나를 뽑아서 starting point ln을 정한다.
-            _ln, _rn = wating_edges.pop()
-            wating_lns = [_ln]
-
-            # ln 정보만 얻고 다시 대기열에 넣어두어야 이후에 정상 처리됨.
-            wating_edges.add((_ln, _rn))
-
+        while len(unprocessed_lns) > 0:
             g = BipartiteGraph()
-            logging.info("start new sub graph.")
-            while len(wating_lns) > 0:
-                logging.info("    g-has edge: %d" % g.get_edge_count())
-                logging.info("    wating lns count: %d" % len(wating_lns))
-                logging.info("    wating edges count: %d" % len(wating_edges))
+            working_lns = [unprocessed_lns.pop()]
 
-                ln = wating_lns.pop(0)
+            while len(working_lns) > 0:
+                ln = working_lns.pop(0)
 
-                # 아직 처리 안된 edge에 대해서만 처리
-                for rn in filter(lambda candidate_rn: (ln, candidate_rn) in wating_edges, self.get_ln_neighbors(ln)):
+                for rn in self.get_ln_neighbors(ln):
                     g.add_edge(ln, rn, self.get_weight(ln, rn))
 
-                    # 처리한 edge를 대기열에서 삭제하고,
-                    # 이번에 처리한 rn의 neighbors(candidate ln)를 처리 대상으로 추가한다.
-                    wating_edges.remove((ln, rn))
-                    wating_lns.extend(filter(lambda candidate_ln: (candidate_ln, rn) in wating_edges, self.get_rn_neighbors(rn)))
+                    # rn에 연결된 다른 ln 중 아직 처리되지 않은 node를 후보로 추가
+                    for candidate_ln in self.get_rn_neighbors(rn):
+                        if candidate_ln in unprocessed_lns:
+                            unprocessed_lns.remove(candidate_ln)
+                            working_lns.append(candidate_ln)
 
             # 하나의 subgraph 완성
             result_list.append(g)
