@@ -31,6 +31,28 @@ class BipartiteGraph(object):
         if target not in self._rns: self._rns_node.append(target)
         self._rns[target][source] = weight
 
+    def get_ln_edge_count(self, ln):
+        return len(self._lns[ln])
+
+    def remove_edge(self, ln, rn):
+        del self._lns[ln][rn]
+        del self._rns[rn][ln]
+
+    def remove_ln(self, ln):
+        # self._lns[ln] 으로 바로 for를 돌리면, 아래의 RuntimeError 발생.
+        # RuntimeError: dictionary changed size during iteration
+        rns = list(self._lns[ln])
+
+        for rn in rns:
+            self.remove_edge(ln, rn)
+            
+            if len(self._rns[rn]) == 0:
+                del self._rns[rn]
+                self._rns_node.remove(rn)
+
+        del self._lns[ln]
+        self._lns_node.remove(ln)
+
     def get_lns(self):
         return self._lns_node
 
@@ -39,6 +61,9 @@ class BipartiteGraph(object):
 
     def get_lns_count(self):
         return len(self._lns)
+
+    def get_rns_count(self):
+        return len(self._rns)
 
     def get_weight(self, ln, rn):
         return self._lns[ln][rn]
