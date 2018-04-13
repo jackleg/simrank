@@ -34,6 +34,9 @@ class BipartiteGraph(object):
     def get_ln_edge_count(self, ln):
         return len(self._lns[ln])
 
+    def get_rn_edge_count(self, rn):
+        return len(self._rns[rn])
+
     def remove_edge(self, ln, rn):
         del self._lns[ln][rn]
         del self._rns[rn][ln]
@@ -125,6 +128,42 @@ class BipartiteGraph(object):
             result_list.append(g)
 
         return result_list
+
+    def cut_subgraphs(self):
+        """강제로 weak link를 찾아서 graph를 분리한다.
+
+        weak link는 rns의 edge 수가 가장 적은 것을 사용하며, 연결을 끊었을 때 좀 더 균등하게 분리되는 것을 사용한다.
+        """
+
+        # 테스트 대상 조건
+        min_rns_edge_count = min([len(edges) for edges in self._rns.itervalues()])
+
+        # graph 두개로 분리했을 때 lns 개수의 ratio
+        # 이 값이 작을수록 잘 분리된 것으로 판단
+        min_ratio = np.finfo.max
+        result_subgraphs = None
+
+        for rn in self._rns_node:
+            if self.get_rn_edge_count(rn) > min_rns_edge_count: continue
+
+            for ln, weight in self.get_rn_neighbors(rn).iteritems():
+                # edge 하나를 제거 후, subgraph로 split해본다.
+                edge = (ln ,rn, weight)
+                self.remove_edge(ln, rn)
+                subgraphs = self.split_subgraphs()
+
+                # subgraphs의 lns 비율이 min_ratio보다 작으면 결과로 사용
+                if len(subgraphs) > 1:
+                    ratio = subgraphs[0].get_lns_count() / subgraphs[1].get_lns_count()
+
+                    if ratio < min_ratio:
+                        min_ratio = ratio
+                        result_subgraphs = subgraphs
+
+                # 지웠던 edge 원상복귀
+                self.add_edge(*edge)
+
+        return result_subgraphs
 
 
 def simrank_bipartite(G, r=0.8, max_iter=100, eps=1e-4):
