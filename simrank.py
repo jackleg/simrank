@@ -1,12 +1,14 @@
 #!/usr/bin/env python
 # -*- coding: utf8 -*-
 
+import sys
 import itertools
 import logging
 import json
 from collections import defaultdict
 
 import numpy as np
+from tqdm import tqdm
 
 
 logging.basicConfig(level=logging.INFO, format='[%(asctime)s][%(levelname)s] %(message)s')
@@ -17,19 +19,28 @@ class BipartiteGraph(object):
         self._lns = defaultdict(dict)
         self._rns = defaultdict(dict)
 
-        # node index의 안정성을 보장하기 위해 node 정보만 따로 가지고 있는 list 사용
-        self._lns_node = []
-        self._rns_node = []
+        # 노드 정보
+        self._lns_node = set()
+        self._rns_node = set()
 
     def add_edge(self, source, target, weight=1.0):
         """source ->(weight)-> target인 edge를 이 그래프에 추가 """
 
-        # 처음 추가되는 노드라면 노드 리스트에 추가. rns도 동일한 방식.
-        if source not in self._lns: self._lns_node.append(source)
-        self._lns[source][target] = weight
+        # edge 추가 전에 node가 추가되어야 할 수도 있음.
+        self.add_ln(source)
+        self.add_rn(target)
 
-        if target not in self._rns: self._rns_node.append(target)
+        self._lns[source][target] = weight
         self._rns[target][source] = weight
+
+    def add_ln(self, ln):
+        self._lns_node.add(ln)
+
+    def add_rn(self, rn):
+        self._rns_node.add(rn)
+
+    def has_ln(self, ln):
+        return ln in self._lns_node
 
     def get_ln_edge_count(self, ln):
         return len(self._lns[ln])
@@ -38,6 +49,7 @@ class BipartiteGraph(object):
         return len(self._rns[rn])
 
     def remove_edge(self, ln, rn):
+        logging.info("remove edge: (%s, %s)" % (ln, rn))
         del self._lns[ln][rn]
         del self._rns[rn][ln]
 
@@ -63,19 +75,25 @@ class BipartiteGraph(object):
         return self._rns_node
 
     def get_lns_count(self):
-        return len(self._lns)
+        return len(self._lns_node)
 
     def get_rns_count(self):
-        return len(self._rns)
+        return len(self._rns_node)
 
     def get_weight(self, ln, rn):
         return self._lns[ln][rn]
 
+    def get_lns_as_list(self):
+        return list(self._lns_node)
+
+    def get_rns_as_list(self):
+        return list(self._rns_node)
+
     def get_lns_index(self):
-        return dict([(node, i) for i, node in enumerate(self._lns_node)])
+        return dict([(node, i) for i, node in enumerate(self.get_lns_as_list())])
 
     def get_rns_index(self):
-        return dict([(node, i) for i, node in enumerate(self._rns_node)])
+        return dict([(node, i) for i, node in enumerate(self.get_rns_as_list())])
 
     def get_ln_neighbors(self, ln):
         if ln not in self._lns:
@@ -104,6 +122,8 @@ class BipartiteGraph(object):
 
     def split_subgraphs(self):
         """Bipartitle graph가 연결이 끊어진 여러 그래프로 나뉠 수 있다면, 해당 그래프들을 분리해서 list에 담아 반환한다."""
+
+        logging.info("start to split graphs.")
         # not yet processed nodes
         unprocessed_lns = set(list(self.get_lns()))
 
@@ -114,6 +134,7 @@ class BipartiteGraph(object):
 
             while len(working_lns) > 0:
                 ln = working_lns.pop(0)
+                g.add_ln(ln)
 
                 for rn in self.get_ln_neighbors(ln):
                     g.add_edge(ln, rn, self.get_weight(ln, rn))
@@ -126,44 +147,35 @@ class BipartiteGraph(object):
 
             # 하나의 subgraph 완성
             result_list.append(g)
+            logging.info("    - complete new graph: %d-lns." % g.get_lns_count())
 
         return result_list
 
-    def cut_subgraphs(self):
-        """강제로 weak link를 찾아서 graph를 분리한다.
+    def filter_edge(self, threshold=0.0):
+        """weight가 threshold보다 작은 edge들을 제거한다.
 
-        weak link는 rns의 edge 수가 가장 적은 것을 사용하며, 연결을 끊었을 때 좀 더 균등하게 분리되는 것을 사용한다.
+        :return: 삭제된 edge들의 리스트
         """
 
-        # 테스트 대상 조건
-        min_rns_edge_count = min([len(edges) for edges in self._rns.itervalues()])
+        deleted_edges = []
+        for ln in self.get_lns():
+            ln_neighbors = list(self.get_ln_neighbors(ln).items())
 
-        # graph 두개로 분리했을 때 lns 개수의 ratio
-        # 이 값이 작을수록 잘 분리된 것으로 판단
-        min_ratio = np.finfo.max
-        result_subgraphs = None
+            for rn, weight in ln_neighbors:
+                if weight < threshold:
+                    deleted_edges.append((ln, rn, weight))
+                    self.remove_edge(ln, rn)
 
-        for rn in self._rns_node:
-            if self.get_rn_edge_count(rn) > min_rns_edge_count: continue
+        return deleted_edges
 
-            for ln, weight in self.get_rn_neighbors(rn).iteritems():
-                # edge 하나를 제거 후, subgraph로 split해본다.
-                edge = (ln ,rn, weight)
-                self.remove_edge(ln, rn)
-                subgraphs = self.split_subgraphs()
-
-                # subgraphs의 lns 비율이 min_ratio보다 작으면 결과로 사용
-                if len(subgraphs) > 1:
-                    ratio = subgraphs[0].get_lns_count() / subgraphs[1].get_lns_count()
-
-                    if ratio < min_ratio:
-                        min_ratio = ratio
-                        result_subgraphs = subgraphs
-
-                # 지웠던 edge 원상복귀
-                self.add_edge(*edge)
-
-        return result_subgraphs
+    def print_graph(self):
+        for ln in self.get_lns():
+            try:
+                for rn, weight in self.get_ln_neighbors(ln).iteritems():
+                    sys.stdout.write("%s\t%s\t%f\n" % (ln, rn, self.get_weight(ln, rn)))
+            # edge 없이 node만 있는 경우
+            except KeyError:
+                sys.stdout.write("%s\t\t\n" % ln)
 
 
 def simrank_bipartite(G, r=0.8, max_iter=100, eps=1e-4):
@@ -234,8 +246,8 @@ def simrank_double_plus_bipartite(G, r=0.8, max_iter=100, eps=1e-4):
     """ A simrank++ bipartite version in the paper.
     """
 
-    lns = G.get_lns()
-    rns = G.get_rns()
+    lns = G.get_lns_as_list()
+    rns = G.get_rns_as_list()
 
     lns_count = len(lns)
     rns_count = len(rns)
@@ -282,7 +294,7 @@ def simrank_double_plus_bipartite(G, r=0.8, max_iter=100, eps=1e-4):
         ## sum_i=1..n (1/2^n). 11개 이상은 1.0으로 봐도 됨.
         ## 공통 원소가 0개인 경우는 무조건 0이므로, 앞에 0 추가.
         calculated_evidence = [0.0,
-
+                               0.50000, 0.75000, 0.87500, 0.93750, 0.96875,
                                0.98438, 0.99219, 0.99609, 0.99805, 0.99902]
 
         # u_index는 데이터가 저장되는 index가 아니라,
@@ -340,6 +352,7 @@ def simrank_double_plus_bipartite(G, r=0.8, max_iter=100, eps=1e-4):
         _calculate_normalized_weight(rns, False)
 
         # lns to rns
+        logging.info("calculate lns to rns transition probability.")
         for n in lns:
             n_index = lns_index[n]
 
@@ -352,6 +365,7 @@ def simrank_double_plus_bipartite(G, r=0.8, max_iter=100, eps=1e-4):
             self_transition_prob_l[n_index] = 1.0 - sum_prob
 
         # rns to lns
+        logging.info("calculate rns to lns transition probability.")
         for n in rns:
             n_index = rns_index[n]
 
@@ -437,10 +451,10 @@ def simrank_double_plus_bipartite(G, r=0.8, max_iter=100, eps=1e-4):
     logging.debug(transition_prob_r_to_l)
 
     for i in range(max_iter):
+        logging.info("start %d-iteration" % (i+1))
         _update_left_partite()
         _update_right_partite()
 
-        logging.debug("%d-~iteration" % (i+1))
         logging.debug(lns_sim)
         logging.debug(rns_sim)
 
@@ -449,8 +463,6 @@ def simrank_double_plus_bipartite(G, r=0.8, max_iter=100, eps=1e-4):
 
         lns_sim_prev = np.copy(lns_sim)
         rns_sim_prev = np.copy(rns_sim)
-
-        logging.info("%d-th iteration." % (i+1))
 
     print("Converge after %d iterations (eps=%f)." % ((i+1), eps))
 
@@ -483,8 +495,8 @@ def convert_sim_to_dict(G, lns_sim, rns_sim, threshold=0.0):
 
         return result_dict
 
-    lns_sim_dict = _convert_sim_to_dict(G.get_lns(), lns_sim)
-    rns_sim_dict = _convert_sim_to_dict(G.get_rns(), rns_sim)
+    lns_sim_dict = _convert_sim_to_dict(G.get_lns_as_list(), lns_sim)
+    rns_sim_dict = _convert_sim_to_dict(G.get_rns_as_list(), rns_sim)
 
     return (lns_sim_dict, rns_sim_dict)
 
@@ -568,6 +580,18 @@ if __name__ == "__main__":
     G4.add_edge("E", 5)
 
     for c, subgraph in enumerate(G4.split_subgraphs(), start=1):
+        print "%d-subgraph has %d-lns." % (c, subgraph.get_lns_count())
+        print subgraph.get_lns()
+
+    G5 = BipartiteGraph()
+
+    G5.add_edge("A", 1)
+    G5.add_edge("A", 2)
+    G5.add_edge("B", 1)
+    G5.add_edge("B", 3)
+    G5.add_edge("C", 3)
+    
+    for c, subgraph in enumerate(G5.cut_subgraphs(), start=1):
         print "%d-subgraph has %d-lns." % (c, subgraph.get_lns_count())
         print subgraph.get_lns()
 
