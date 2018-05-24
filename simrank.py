@@ -11,7 +11,7 @@ import numpy as np
 from tqdm import tqdm
 
 
-logging.basicConfig(level=logging.INFO, format='[%(asctime)s][%(levelname)s] %(message)s')
+logging.basicConfig(level=logging.DEBUG, format='[%(asctime)s][%(levelname)s] %(message)s')
 
 class BipartiteGraph(object):
     """bipartite graph를 표현하기 위한 클래스"""
@@ -321,11 +321,17 @@ def simrank_double_plus_bipartite(G, r=0.8, max_iter=100, eps=1e-4):
         for n in ns:
             nbr = G.get_neighbors(n, is_lns)
             weights = nbr.values()
+            norm_weights = weights / np.max(weights)
 
+            logging.debug("n: %s" % n)
+            logging.debug("weights: %s" % weights)
+            logging.debug("norm_weights: %s" % norm_weights)
             if is_lns:
-                lns_spread[lns_index[n]] = np.exp(-np.var(weights))
+                lns_spread[lns_index[n]] = np.exp(-np.var(norm_weights))
+                logging.debug("spread for %s[%d]: %s" % (n, lns_index[n], lns_spread))
             else:  # is_rns
-                rns_spread[rns_index[n]] = np.exp(-np.var(weights))
+                rns_spread[rns_index[n]] = np.exp(-np.var(norm_weights))
+                logging.debug("spread for %s[%d]: %s" % (n, rns_index[n], rns_spread))
 
 
     def _calculate_normalized_weight(ns, is_lns=True):
