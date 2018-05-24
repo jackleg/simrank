@@ -12,7 +12,7 @@ G = simrank.BipartiteGraph()
 
 for line in tqdm(sys.stdin):
     tokens = line.rstrip("\n").split("\t")
-    if int(tokens[2]) < 5: continue
+    if float(tokens[2]) < 5: continue
 
     G.add_edge(tokens[0], tokens[1], float(tokens[2]))
 
@@ -22,11 +22,11 @@ np.set_printoptions(threshold='nan')
 
 result_subgraphs = filter(lambda g: (g.get_lns_count() > 1) or (g.get_rns_count() > 1), G.split_subgraphs())
 threshold = 6.0
-while any([g.get_lns_count() > 10000 for g in result_subgraphs]):
+while any([g.get_lns_count() > 1000 for g in result_subgraphs]):
     print "edge threshold: 6.0"
     new_subgraphs = []
     for index, s in enumerate(result_subgraphs):
-        if s.get_lns_count() > 10000:
+        if s.get_lns_count() > 1000:
             result_subgraphs.remove(s)
 
             s.filter_edge(threshold)
