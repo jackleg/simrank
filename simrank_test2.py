@@ -38,33 +38,36 @@ while any([g.get_lns_count() > 1000 for g in result_subgraphs]):
     result_subgraphs = new_subgraphs
     threshold += 1.0
 
-          
-for c, subgraph in enumerate(result_subgraphs, start=1):
-    print "%d-subgraph" % c
-    print "    has %d-lns / %d-rns" % (subgraph.get_lns_count(), subgraph.get_rns_count())
 
-    print "========= graph"
-    subgraph.print_graph()
+with open("lns_sim.txt", "w") as lns_file, open("rns_sim.txt", "w") as rns_file:       
+    for c, subgraph in enumerate(result_subgraphs, start=1):
+        print "%d-subgraph" % c
+        print "    has %d-lns / %d-rns" % (subgraph.get_lns_count(), subgraph.get_rns_count())
 
-    query_sim, prod_sim = simrank.simrank_double_plus_bipartite(subgraph)
-    query_sim_dict, prod_sim_dict = simrank.convert_sim_to_dict(subgraph, query_sim, prod_sim)
+        print "========= graph"
+        subgraph.print_graph()
 
-    print "========= lns"
-    for node, index in subgraph.get_lns_index().iteritems():
-        print "%d | %s" % (index, node)
+        query_sim, prod_sim = simrank.simrank_double_plus_bipartite(subgraph)
+        query_sim_dict, prod_sim_dict = simrank.convert_sim_to_dict(subgraph, query_sim, prod_sim)
 
-    for row_index, row in enumerate(query_sim):
-        for col_index, val in enumerate(row):
-            if val > 0.0: print row_index, col_index, val
+        print "========= lns"
+        #for node, index in subgraph.get_lns_index().iteritems():
+        #    print "%d | %s" % (index, node)
 
-    print json.dumps(query_sim_dict, sort_keys=True, indent=4, ensure_ascii=False)
+        #for row_index, row in enumerate(query_sim):
+        #    for col_index, val in enumerate(row):
+        #        if val > 0.0: print row_index, col_index, val
 
-    print "========= rns"
-    for node, index in subgraph.get_rns_index().iteritems():
-        print "%d | %s" % (index, node)
-    
-    for row_index, row in enumerate(prod_sim):
-        for col_index, val in enumerate(row):
-            if val > 0.0: print row_index, col_index, val
+        #print json.dumps(query_sim_dict, sort_keys=True, indent=4, ensure_ascii=False)
+        lns_file.write("%s\n" % json.dumps(query_sim_dict, sort_keys=True, ensure_ascii=False))
 
-    print json.dumps(prod_sim_dict, sort_keys=True, indent=4, ensure_ascii=False)
+        print "========= rns"
+        #for node, index in subgraph.get_rns_index().iteritems():
+        #    print "%d | %s" % (index, node)
+        #
+        #for row_index, row in enumerate(prod_sim):
+        #    for col_index, val in enumerate(row):
+        #        if val > 0.0: print row_index, col_index, val
+
+        #print json.dumps(prod_sim_dict, sort_keys=True, indent=4, ensure_ascii=False)
+        rns_file.write("%s\n" % json.dumps(prod_sim_dict, sort_keys=True, ensure_ascii=False))
